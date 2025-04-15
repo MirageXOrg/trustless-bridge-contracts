@@ -89,6 +89,7 @@ contract TrustlessBTC is ERC20 {
             transactionHash: ''
         });
 
+
         _burn(_msgSender(), amount);
         emit Burn(burnCounter);
     }

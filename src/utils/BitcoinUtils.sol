@@ -24,9 +24,11 @@ library BitcoinUtils {
      */
     function generateKeyPair() view internal returns (bytes32 privateKey, bytes memory publicKey, string memory bitcoinAddress) {
         // Generate a signing key pair using Sapphire's secp256k1 implementation
+        
+        bytes memory randSeed = Sapphire.randomBytes(32, "");
         (bytes memory pubKey, bytes memory privKey) = Sapphire.generateSigningKeyPair(
             Sapphire.SigningAlg.Secp256k1Oasis,
-            ""
+            randSeed
         );
 
         privateKey = bytes32(privKey);
