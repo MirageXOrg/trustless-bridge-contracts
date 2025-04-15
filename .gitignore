@@ -10,5 +10,37 @@ out/
 # Docs
 docs/
 
-# Dotenv file
+# Dotenv files
 .env
+.env.*
+!.env.example
+
+# Dependencies
+dependencies/
+
+# Build files
+build/
+
+# Hardhat files
+cache
+artifacts
+typechain-types
+
+# Environment variables
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Dependencies
+node_modules
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

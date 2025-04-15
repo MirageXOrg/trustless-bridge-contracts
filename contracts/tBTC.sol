@@ -54,7 +54,6 @@ contract TrustlessBTC is ERC20 {
        publicKey = _publicKey;
        bitcoinAddress = _address;
     }
-
     
     /**
      * @dev Creates `amount` tokens and assigns them to `account`, increasing

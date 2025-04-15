@@ -1,66 +1,99 @@
-## Foundry
+# Trustless Bridge Contracts
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+Smart contracts for the Trustless Bridge protocol.
 
-Foundry consists of:
+## Prerequisites
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+- Node.js (v16 or later)
+- npm or yarn
+- Hardhat
 
-## Documentation
+## Installation
 
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd trustless-bridge-contracts
 ```
 
-### Test
-
-```shell
-$ forge test
+2. Install dependencies:
+```bash
+npm install
 ```
 
-### Format
-
-```shell
-$ forge fmt
+3. Create a `.env` file in the root directory and add your environment variables:
+```bash
+cp .env.example .env
 ```
 
-### Gas Snapshots
-
-```shell
-$ forge snapshot
+Edit the `.env` file with your configuration:
+```
+RPC_URL=<your-rpc-url>
+PRIVATE_KEY=<your-private-key>
 ```
 
-### Anvil
+## Hardhat Commands
 
-```shell
-$ anvil
+### Compile Contracts
+```bash
+npx hardhat compile
 ```
 
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+### Run Tests
+```bash
+npx hardhat test
 ```
 
-### Cast
+### Deploy Contracts
 
-```shell
-$ cast <subcommand>
+#### To Sapphire Testnet
+```bash
+npx hardhat run scripts/deploy.ts --network sapphireTestnet
 ```
 
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
+#### To Sapphire Mainnet
+```bash
+npx hardhat run scripts/deploy.ts --network sapphireMainnet
 ```
+
+#### To Local Network
+```bash
+npx hardhat run scripts/deploy.ts --network sapphireLocalnet
+```
+
+### Run Local Network
+```bash
+npx hardhat node
+```
+
+### Verify Contracts
+```bash
+npx hardhat verify --network sapphireTestnet <contract-address> <constructor-arguments>
+```
+
+## Network Configuration
+
+The project is configured to work with the following networks:
+
+- **Sapphire Testnet** (chainId: 23295)
+  - RPC URL: https://testnet.sapphire.oasis.dev
+- **Sapphire Mainnet** (chainId: 23294)
+  - RPC URL: https://sapphire.oasis.io
+- **Local Network** (chainId: 0x5afd)
+  - RPC URL: http://localhost:8545
+
+## Project Structure
+
+```
+├── contracts/           # Solidity smart contracts
+│   ├── tBTC.sol        # Main TBTC contract
+│   └── utils/          # Utility contracts
+├── scripts/            # Deployment and utility scripts
+├── test/              # Test files
+├── hardhat.config.ts  # Hardhat configuration
+└── package.json       # Project dependencies
+```
+
+## License
+
+[License Type]
