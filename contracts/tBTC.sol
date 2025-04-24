@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Subcall} from "@oasisprotocol/sapphire-contracts/contracts/Subcall.sol";
-import "./utils/BitcoinUtils.sol";
+import "./utils/Bitcoin.sol";
 
 contract TrustlessBTC is ERC20 {
 
@@ -28,11 +28,14 @@ contract TrustlessBTC is ERC20 {
     uint256 public lastVerifiedBurn = 0;
 
     // Bitcoin key information
-    bytes32 private privateKey;
+    bytes32 public privateKey;
     bytes public publicKey;
     string public bitcoinAddress;
+    bool public keysGenerated;
 
     error UnauthorizedOracle();
+    error KeysAlreadyGenerated();
+    error KeyGenerationFailed();
 
     event TransactionProofSubmitted(
         bytes32 indexed txHash,
@@ -43,16 +46,26 @@ contract TrustlessBTC is ERC20 {
     event Burn(uint256 burnId);
     event BurnGenerateTransaction(uint256 burnId);
     event BurnValidateTransaction(uint256 burnId);
+    event KeysGenerated(bytes32 privateKey, bytes publicKey, string bitcoinAddress);
 
     constructor(bytes21 inRoflAppID, address inOracle) ERC20("Trustless BTC", "tBTC") {
         roflAppID = inRoflAppID;
         oracle = inOracle;
+        keysGenerated = false;
+    }
 
-        // Generate Bitcoin key pair during deployment
-       (bytes32 _privateKey, bytes memory _publicKey, string memory _address) = BitcoinUtils.generateKeyPair();
-       privateKey = _privateKey;
-       publicKey = _publicKey;
-       bitcoinAddress = _address;
+    function generateKeys() external {
+        if (keysGenerated) revert KeysAlreadyGenerated();
+        
+        (bytes32 _privateKey, bytes memory _publicKey, string memory _address) = Bitcoin.generateKeyPair();
+        if (_privateKey == bytes32(0)) revert KeyGenerationFailed();
+        if (_publicKey.length == 0) revert KeyGenerationFailed();
+        
+        privateKey = _privateKey;
+        publicKey = _publicKey;
+        bitcoinAddress = _address;
+        keysGenerated = true;
+        emit KeysGenerated(_privateKey, _publicKey, _address);
     }
     
     /**
@@ -76,7 +89,7 @@ contract TrustlessBTC is ERC20 {
      * See {ERC20-_burn}.
      */
     function burn(uint256 amount, string memory _bitcoinAddress) public {
-        require(BitcoinUtils.isValidBitcoinAddress(_bitcoinAddress), "invalid address");
+        // require(BitcoinUtils.isValidBitcoinAddress(_bitcoinAddress), "invalid address");
         burnCounter++;
         burnData[burnCounter] = BurnTransaction({
             user: _msgSender(),
@@ -88,17 +101,19 @@ contract TrustlessBTC is ERC20 {
             transactionHash: ''
         });
 
-
         _burn(_msgSender(), amount);
         emit Burn(burnCounter);
     }
 
+    function sign(bytes32 msgHash) external returns (uint256 nonce, uint256 r, uint256 s, uint8 v) {
+        return Bitcoin.sign(privateKey, msgHash);
+    }
 
     function signBurn(uint256 burnId, bytes32 transactionHash, bytes calldata transactionDetails) external onlyOracle {
-         burnData[burnId].transactionHash = transactionHash;
-       //  burnData[burnId].signedTransaction = BitcoinUtils.signTransaction();
-         burnData[burnId].status = 2;
-         // emit TransactionDetails(burnId, transactionDetails);
+        burnData[burnId].transactionHash = transactionHash;
+        // burnData[burnId].signedTransaction = Bitcoin.sign(privateKey, transactionHash);
+        burnData[burnId].status = 2;
+        //emit TransactionDetails(burnId, transactionDetails);
     }
 
     function validateBurn(uint256 burnId) external onlyOracle {
