@@ -5,6 +5,14 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
+const TEST_HDWALLET = {
+  mnemonic: "test test test test test test test test test test test junk",
+  path: "m/44'/60'/0'/0",
+  initialIndex: 0,
+  count: 20,
+  passphrase: "",
+};
+
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -28,8 +36,9 @@ const config: HardhatUserConfig = {
       chainId: 23294
     },
     sapphireLocalnet: {
+      //  docker run -it -p8544-8548:8544-8548 --platform linux/x86_64 ghcr.io/oasisprotocol/sapphire-localnet
       url: "http://localhost:8545",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: TEST_HDWALLET,
       chainId: 0x5afd
     }
   }
