@@ -183,4 +183,8 @@ contract TrustlessBTC is ERC20 {
         Subcall.roflEnsureAuthorizedOrigin(appId);
         _;
     }
+
+    function decimals() public view virtual override returns (uint8) {
+        return 8;
+    }
 }

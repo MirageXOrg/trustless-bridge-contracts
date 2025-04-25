@@ -37,7 +37,7 @@ async function main() {
     console.log("Keys generated successfully");
     console.log("Bitcoin address:", await tbtc.bitcoinAddress());
     console.log("Public key:", await tbtc.publicKey());
-    console.log("Private key:", await tbtc.privateKey());
+    // console.log("Private key:", await tbtc.privateKey());
   } catch (error) {
     console.error("Failed to generate keys:", error);
   }
