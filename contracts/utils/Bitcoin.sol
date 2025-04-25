@@ -24,7 +24,7 @@ library Bitcoin {
     error InvalidInputLength();
     error InvalidSignature();
 
-    function generateKeyPair() internal returns (bytes32 privateKey, bytes memory publicKey, string memory bitcoinAddress) {
+    function generateKeyPair() internal view returns (bytes32 privateKey, bytes memory publicKey, string memory bitcoinAddress) {
         privateKey = generatePrivateKey();
         publicKey = derivePublicKey(privateKey);
         bytes memory addressBytes = generateAddress(publicKey, true);
@@ -48,7 +48,7 @@ library Bitcoin {
      * @param privateKey The 32-byte private key
      * @return The uncompressed public key (65 bytes)
      */
-    function derivePublicKey(bytes32 privateKey) internal view returns (bytes memory) {
+    function derivePublicKey(bytes32 privateKey) internal pure returns (bytes memory) {
         uint256 privKey = uint256(privateKey);
 
         if (privKey == 0 || privKey >= N) revert InvalidPrivateKey();
@@ -127,7 +127,7 @@ library Bitcoin {
     function sign(
         bytes32 privateKey,
         bytes32 msgHash
-    ) internal returns (uint256 nonce, uint256 r, uint256 s, uint8 v) {
+    ) internal pure returns (uint256 nonce, uint256 r, uint256 s, uint8 v) {
         uint256 privKey = uint256(privateKey);
         if (privKey == 0 || privKey >= N) revert InvalidPrivateKey();
 

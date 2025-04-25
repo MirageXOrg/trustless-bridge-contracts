@@ -28,7 +28,7 @@ contract TrustlessBTC is ERC20 {
     uint256 public lastVerifiedBurn = 0;
 
     // Bitcoin key information
-    bytes32 public privateKey;
+    bytes32 private privateKey;
     bytes public publicKey;
     string public bitcoinAddress;
     bool public keysGenerated;
@@ -105,15 +105,27 @@ contract TrustlessBTC is ERC20 {
         emit Burn(burnCounter);
     }
 
-    function sign(bytes32 msgHash) external returns (uint256 nonce, uint256 r, uint256 s, uint8 v) {
+    /**
+     * @notice Testing helping function. Remove.
+     * @dev Signs a message
+     * @param msgHash Message hash to sign
+     */
+    function sign(bytes32 msgHash) external view returns (uint256 nonce, uint256 r, uint256 s, uint8 v) {
         return Bitcoin.sign(privateKey, msgHash);
     }
 
-    function signBurn(uint256 burnId, bytes32 transactionHash, bytes calldata transactionDetails) external onlyOracle {
+    /**
+     * @notice TODO: Should we sent in the transaction details, so anyone can submit the transaction?
+     * @dev Signs a burn transaction
+     * @param burnId The burn ID
+     * @param transactionHash The transaction hash
+     */
+    function signBurn(uint256 burnId, bytes32 transactionHash) external onlyOracle {
         burnData[burnId].transactionHash = transactionHash;
-        // burnData[burnId].signedTransaction = Bitcoin.sign(privateKey, transactionHash);
+        (uint256 nonce, uint256 r, uint256 s, uint8 v) = Bitcoin.sign(privateKey, transactionHash);
+        burnData[burnId].signedTransaction = abi.encode(nonce, r, s, v);
         burnData[burnId].status = 2;
-        //emit TransactionDetails(burnId, transactionDetails);
+        // emit TransactionBurn(burnId, transactionDetails);
     }
 
     function validateBurn(uint256 burnId) external onlyOracle {
