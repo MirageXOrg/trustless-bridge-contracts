@@ -5,12 +5,16 @@ async function main() {
   console.log("Using account:", deployer.address);
 
   // Get the deployed TrustlessBTC contract
-  const tbtcAddress = "";
+  const tbtcAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
   if (!tbtcAddress) {
     throw new Error("TRUSTLESS_BTC_ADDRESS environment variable not set");
   }
 
-  const TrustlessBTC = await ethers.getContractFactory("TrustlessBTC");
+  const TrustlessBTC = await ethers.getContractFactory("TrustlessBTC", {
+    libraries: {
+      SECP256K1: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+    },
+  });
   const tbtc = TrustlessBTC.attach(tbtcAddress);
 
   // Get the RFC6979 interface
