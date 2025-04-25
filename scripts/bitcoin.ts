@@ -9,9 +9,17 @@ dotenv.config();
 
 
 function encodeDerSignature(r: BN, s: BN): Buffer {
-    const rBuf = r.toArrayLike(Buffer, 'be');
-    const sBuf = s.toArrayLike(Buffer, 'be');
+    const rBuf = toPositiveBuffer(r.toArrayLike(Buffer, 'be'));
+    const sBuf = toPositiveBuffer(s.toArrayLike(Buffer, 'be'));
     return Buffer.from(bip66.encode(rBuf, sBuf));
+}
+
+function toPositiveBuffer(buf: Buffer): Buffer {
+    if (buf[0] & 0x80) {
+        // Prepend 0x00 if the highest bit is set
+        return Buffer.concat([Buffer.from([0x00]), buf]);
+    }
+    return buf;
 }
 
 // Calculate transaction amounts
@@ -116,8 +124,10 @@ async function sendCustomSignedTransaction(
         console.log("v", v);
 
         // Convert r, s to Buffer
-        const rBuf = Buffer.from(r.toString(16).padStart(64, '0'), 'hex');
-        const sBuf = Buffer.from(s.toString(16).padStart(64, '0'), 'hex');
+        let rBuf = Buffer.from(r.toString(16).padStart(64, '0'), 'hex');
+        let sBuf = Buffer.from(s.toString(16).padStart(64, '0'), 'hex');
+        rBuf = toPositiveBuffer(rBuf);
+        sBuf = toPositiveBuffer(sBuf);
         let derSig = Buffer.concat([
             encodeDerSignature(new BN(rBuf), new BN(sBuf)),
             Buffer.from([sighashType])
@@ -158,7 +168,7 @@ async function main() {
     console.log("UTXOs:", utxos);
 
     const destinationAmountSat = 1000; // 0.00001 BTC
-    const estimatedTxSizeBytes = 255 * utxos.length;
+    const estimatedTxSizeBytes = 254 * utxos.length;
     const { amountToSendSat, change, fee } = calculateAmounts(
         totalBalance,
         destinationAmountSat,
