@@ -39,7 +39,7 @@ contract TrustlessBTC is ERC20 {
 
     event TransactionProofSubmitted(
         bytes32 indexed txHash,
-        bytes signature,
+        string signature,
         address indexed ethereumAddress
     );
 
@@ -151,11 +151,12 @@ contract TrustlessBTC is ERC20 {
      */
     function submitMintTransactionProof(
         bytes32 txHash,
-        bytes memory signature,
+        string memory signature,
         address ethereumAddress
     ) external  {
         // Check if the transaction hash has already been submitted
         require(!submittedTransactions[txHash], "Transaction hash already submitted");
+        submittedTransactions[txHash] = true;
         
         // Log the transaction proof parameters
         emit TransactionProofSubmitted(txHash, signature, ethereumAddress);
