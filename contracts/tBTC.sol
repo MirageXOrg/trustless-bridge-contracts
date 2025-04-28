@@ -12,9 +12,12 @@ contract TrustlessBTC is ERC20 {
         uint256 amount;
         uint256 timestamp;
         string bitcoinAddress;
-        bytes signedTransaction;
         bytes32 transactionHash;
         uint8 status;
+        uint256 nonce;
+        uint256 r;
+        uint256 s;
+        uint8 v;
     }
 
     // Rofl information
@@ -44,8 +47,11 @@ contract TrustlessBTC is ERC20 {
     );
 
     event Burn(uint256 burnId);
+    event BurnSigned(uint256 burnId, bytes32 transactionHash);
+    event BurnValidated(uint256 burnId);
     event BurnGenerateTransaction(uint256 burnId);
     event BurnValidateTransaction(uint256 burnId);
+    
     event KeysGenerated(bytes32 privateKey, bytes publicKey, string bitcoinAddress);
 
     constructor(bytes21 inRoflAppID, address inOracle) ERC20("Trustless BTC", "tBTC") {
@@ -79,6 +85,7 @@ contract TrustlessBTC is ERC20 {
      * - `account` cannot be the zero address.
      */
     function mint(address account, uint256 amount, bytes32 txHash) public onlyOracle {
+        require(!submittedTransactions[txHash], "Transaction hash already processed");
         submittedTransactions[txHash] = true;
         _mint(account, amount);
     }
@@ -96,13 +103,17 @@ contract TrustlessBTC is ERC20 {
             amount: amount,
             timestamp: block.timestamp,
             status: 1,
-            bitcoinAddress: _bitcoinAddress,
-            signedTransaction: '',
-            transactionHash: ''
+            bitcoinAddress: _bitcoinAddress,  
+            transactionHash: '',
+            nonce: 0,
+            r: 0,
+            s: 0,
+            v: 0
         });
 
         _burn(_msgSender(), amount);
         emit Burn(burnCounter);
+        emit BurnGenerateTransaction(burnCounter);
     }
 
     /**
@@ -120,26 +131,39 @@ contract TrustlessBTC is ERC20 {
      * @param burnId The burn ID
      * @param transactionHash The transaction hash
      */
-    function signBurn(uint256 burnId, bytes32 transactionHash) external onlyOracle {
+    function signBurn(uint256 burnId, bytes32 transactionHash) external onlyOracle
+        returns (uint256 nonce, uint256 r, uint256 s, uint8 v) 
+    {
+        require(burnData[burnId].status == 1, "Burn transaction not generated");
         burnData[burnId].transactionHash = transactionHash;
-        (uint256 nonce, uint256 r, uint256 s, uint8 v) = Bitcoin.sign(privateKey, transactionHash);
-        burnData[burnId].signedTransaction = abi.encode(nonce, r, s, v);
+        (nonce, r, s, v) = Bitcoin.sign(privateKey, transactionHash);
+        burnData[burnId].nonce = nonce;
+        burnData[burnId].r = r;
+        burnData[burnId].s = s;
+        burnData[burnId].v = v;
         burnData[burnId].status = 2;
-        // emit TransactionBurn(burnId, transactionDetails);
+        emit BurnSigned(burnId, transactionHash);
     }
 
     function validateBurn(uint256 burnId) external onlyOracle {
+        require(burnData[burnId].status == 2, "Burn transaction not signed");
         burnData[burnId].status = 3;
         lastVerifiedBurn = burnId;
+        emit BurnValidated(burnId);
     }
 
-    function generateBurnTransaction(uint256 burnId) external {
-        require(burnId == lastVerifiedBurn+1);
+    /**
+     * @dev Can retrigger generation of a burn transaction.
+     */
+    function generateBurnTransaction() external {
+        uint256 burnId = lastVerifiedBurn+1;
+        require(burnData[burnId].status == 1, "Burn transaction not generated");
         emit BurnGenerateTransaction(burnId);
     }
 
-    function validateBurnTransaction(uint256 burnId) external {
-        require(burnId == lastVerifiedBurn+1);
+    function validateBurnTransaction() external {
+        uint256 burnId = lastVerifiedBurn+1;
+        require(burnData[burnId].status == 2, "Burn transaction not signed");
         emit BurnValidateTransaction(burnId);
     }
 
@@ -155,9 +179,7 @@ contract TrustlessBTC is ERC20 {
         address ethereumAddress
     ) external  {
         // Check if the transaction hash has already been submitted
-        require(!submittedTransactions[txHash], "Transaction hash already submitted");
-        submittedTransactions[txHash] = true;
-        
+        require(!submittedTransactions[txHash], "Transaction hash already processed");
         // Log the transaction proof parameters
         emit TransactionProofSubmitted(txHash, signature, ethereumAddress);
     }
