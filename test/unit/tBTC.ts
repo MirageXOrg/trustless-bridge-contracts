@@ -126,11 +126,11 @@ describe('TrustlessBTC', () => {
         .to.emit(contract, "BurnGenerateTransaction")
         .withArgs(burnId);
 
-        await expect(contract.connect(oracle).burnSigned(burnId, rawTx, txHash))
+        await expect(contract.connect(oracle).signBurn(burnId, rawTx, txHash))
         .to.emit(contract, "BurnSigned")
         .withArgs(burnId, rawTx);
 
-        await expect(contract.connect(oracle).validateBurnTransaction())
+        await expect(contract.connect(oracle).requestValidateBurnBitcoinTransaction())
         .to.emit(contract, "BurnValidateTransaction")
         .withArgs(burnId);
 

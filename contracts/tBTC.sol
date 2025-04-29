@@ -126,7 +126,7 @@ contract TrustlessBTC is ERC20, SiweAuth {
         return Bitcoin.sign(privateKey, msgHash);
     }
 
-    function burnSigned(uint256 burnId, bytes calldata rawTx, bytes32 transactionHash) external onlyOracle()
+    function signBurn(uint256 burnId, bytes calldata rawTx, bytes32 transactionHash) external onlyOracle()
     {
         require(burnData[burnId].status == 1, "Burn transaction not generated");
         burnData[burnId].status = 2;
@@ -145,13 +145,13 @@ contract TrustlessBTC is ERC20, SiweAuth {
     /**
      * @dev Can retrigger generation of a burn transaction.
      */
-    function generateBurnTransaction() external {
+    function requestCreateBurnBitcoinTransaction() external {
         uint256 burnId = lastVerifiedBurn+1;
         require(burnData[burnId].status == 1, "Burn transaction not generated");
         emit BurnGenerateTransaction(burnId);
     }
 
-    function validateBurnTransaction() external {
+    function requestValidateBurnBitcoinTransaction() external {
         uint256 burnId = lastVerifiedBurn+1;
         require(burnData[burnId].status == 2, "Burn transaction not signed");
         emit BurnValidateTransaction(burnId);
