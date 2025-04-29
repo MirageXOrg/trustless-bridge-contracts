@@ -3,17 +3,22 @@ pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Subcall} from "@oasisprotocol/sapphire-contracts/contracts/Subcall.sol";
+import {SiweAuth} from "@oasisprotocol/sapphire-contracts/contracts/auth/SiweAuth.sol";
 import "./utils/Bitcoin.sol";
 
-contract TrustlessBTC is ERC20 {
+contract TrustlessBTC is ERC20, SiweAuth {
 
     struct BurnTransaction {
         address user;
         uint256 amount;
         uint256 timestamp;
         string bitcoinAddress;
-        bytes32 transactionHash;
         uint8 status;
+        bytes32 transactionHash;
+    }
+
+    struct SignedTransaction {
+        bytes32 transactionHash;
         uint256 nonce;
         uint256 r;
         uint256 s;
@@ -47,14 +52,14 @@ contract TrustlessBTC is ERC20 {
     );
 
     event Burn(uint256 burnId);
-    event BurnSigned(uint256 burnId, bytes32 transactionHash);
+    event BurnSigned(uint256 burnId, bytes rawTx);
     event BurnValidated(uint256 burnId);
     event BurnGenerateTransaction(uint256 burnId);
     event BurnValidateTransaction(uint256 burnId);
     
     event KeysGenerated(bytes32 privateKey, bytes publicKey, string bitcoinAddress);
 
-    constructor(bytes21 inRoflAppID, address inOracle) ERC20("Trustless BTC", "tBTC") {
+    constructor(bytes21 inRoflAppID, address inOracle, string memory domain) ERC20("Trustless BTC", "tBTC") SiweAuth(domain) {
         roflAppID = inRoflAppID;
         oracle = inOracle;
         keysGenerated = false;
@@ -84,7 +89,7 @@ contract TrustlessBTC is ERC20 {
      *
      * - `account` cannot be the zero address.
      */
-    function mint(address account, uint256 amount, bytes32 txHash) public onlyOracle {
+    function mint(address account, uint256 amount, bytes32 txHash) public onlyOracle() {
         require(!submittedTransactions[txHash], "Transaction hash already processed");
         submittedTransactions[txHash] = true;
         _mint(account, amount);
@@ -103,12 +108,8 @@ contract TrustlessBTC is ERC20 {
             amount: amount,
             timestamp: block.timestamp,
             status: 1,
-            bitcoinAddress: _bitcoinAddress,  
-            transactionHash: '',
-            nonce: 0,
-            r: 0,
-            s: 0,
-            v: 0
+            bitcoinAddress: _bitcoinAddress,
+            transactionHash: bytes32(0)
         });
 
         _burn(_msgSender(), amount);
@@ -121,31 +122,20 @@ contract TrustlessBTC is ERC20 {
      * @dev Signs a message
      * @param msgHash Message hash to sign
      */
-    function sign(bytes32 msgHash) external view returns (uint256 nonce, uint256 r, uint256 s, uint8 v) {
+    function sign(bytes32 msgHash, bytes memory token) external onlyOracleSiwe(token) view returns (uint256 nonce, uint256 r, uint256 s, uint8 v) {
         return Bitcoin.sign(privateKey, msgHash);
     }
 
-    /**
-     * @notice TODO: Should we sent in the transaction details, so anyone can submit the transaction?
-     * @dev Signs a burn transaction
-     * @param burnId The burn ID
-     * @param transactionHash The transaction hash
-     */
-    function signBurn(uint256 burnId, bytes32 transactionHash) external onlyOracle
-        returns (uint256 nonce, uint256 r, uint256 s, uint8 v) 
+    function burnSigned(uint256 burnId, bytes calldata rawTx, bytes32 transactionHash) external onlyOracle()
     {
         require(burnData[burnId].status == 1, "Burn transaction not generated");
-        burnData[burnId].transactionHash = transactionHash;
-        (nonce, r, s, v) = Bitcoin.sign(privateKey, transactionHash);
-        burnData[burnId].nonce = nonce;
-        burnData[burnId].r = r;
-        burnData[burnId].s = s;
-        burnData[burnId].v = v;
         burnData[burnId].status = 2;
-        emit BurnSigned(burnId, transactionHash);
+        burnData[burnId].transactionHash = transactionHash;
+        emit BurnSigned(burnId, rawTx);
     }
 
-    function validateBurn(uint256 burnId) external onlyOracle {
+    function validateBurn(uint256 burnId) external onlyOracle() {
+        require(burnId == lastVerifiedBurn+1, "Wrong burn ID");
         require(burnData[burnId].status == 2, "Burn transaction not signed");
         burnData[burnId].status = 3;
         lastVerifiedBurn = burnId;
@@ -200,6 +190,15 @@ contract TrustlessBTC is ERC20 {
         _;
     }
 
+        // Checks whether the transaction or query was signed by the oracle's
+    // private key accessible only within TEE.
+    modifier onlyOracleSiwe(bytes memory token) {
+        if (msg.sender != oracle && authMsgSender(token) != oracle) {
+            revert UnauthorizedOracle();
+        }
+        _;
+    }
+
     // Checks whether the transaction was signed by the ROFL's app key inside
     // TEE.
     modifier onlyTEE(bytes21 appId) {
@@ -210,4 +209,5 @@ contract TrustlessBTC is ERC20 {
     function decimals() public view virtual override returns (uint8) {
         return 8;
     }
+
 }

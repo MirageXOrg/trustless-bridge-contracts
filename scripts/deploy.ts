@@ -32,7 +32,7 @@ async function main() {
       RFC6979: rfc6979Address,
     },
   });
-  const tbtc = await TrustlessBTC.deploy(roflAppID, oracle);
+  const tbtc = await TrustlessBTC.deploy(roflAppID, oracle, "trustless.btc");
   await tbtc.waitForDeployment();
   const tbtcAddress = await tbtc.getAddress();
 
