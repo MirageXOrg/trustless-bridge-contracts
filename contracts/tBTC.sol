@@ -8,6 +8,9 @@ import "./utils/Bitcoin.sol";
 
 contract TrustlessBTC is ERC20, SiweAuth {
 
+    /**
+     * @notice Information regarding burn transaction.
+     */
     struct BurnTransaction {
         address user;
         uint256 amount;
@@ -17,20 +20,12 @@ contract TrustlessBTC is ERC20, SiweAuth {
         bytes32 transactionHash;
     }
 
-    struct SignedTransaction {
-        bytes32 transactionHash;
-        uint256 nonce;
-        uint256 r;
-        uint256 s;
-        uint8 v;
-    }
-
     // Rofl information
     address public oracle;    // Oracle address running inside TEE.
     bytes21 public roflAppID; // Allowed app ID within TEE for managing allowed oracle address.
 
     // Bitcoin transactions verifier
-    mapping(bytes32 => bool) public submittedTransactions;
+    mapping(bytes32 => bool) public processedMintTransactions;
     mapping(uint256 => BurnTransaction) public burnData;
     uint256 public burnCounter = 0;
     uint256 public lastVerifiedBurn = 0;
@@ -44,6 +39,11 @@ contract TrustlessBTC is ERC20, SiweAuth {
     error UnauthorizedOracle();
     error KeysAlreadyGenerated();
     error KeyGenerationFailed();
+    error TransactionAlreadyProcessed();
+    error InvalidBitcoinAddress();
+    error BurnTransactionNotGenerated();
+    error WrongBurnId();
+    error BurnTransactionNotSigned();
 
     event TransactionProofSubmitted(
         bytes32 indexed txHash,
@@ -51,7 +51,6 @@ contract TrustlessBTC is ERC20, SiweAuth {
         address indexed ethereumAddress
     );
 
-    event Burn(uint256 burnId);
     event BurnSigned(uint256 burnId, bytes rawTx);
     event BurnValidated(uint256 burnId);
     event BurnGenerateTransaction(uint256 burnId);
@@ -65,6 +64,9 @@ contract TrustlessBTC is ERC20, SiweAuth {
         keysGenerated = false;
     }
 
+    /**
+     * @notice Generates a new key pair. Can only be called once.
+     */
     function generateKeys() external {
         if (keysGenerated) revert KeysAlreadyGenerated();
         
@@ -80,97 +82,115 @@ contract TrustlessBTC is ERC20, SiweAuth {
     }
     
     /**
-     * @dev Creates `amount` tokens and assigns them to `account`, increasing
-     * the total supply.
-     *
-     * Emits a {Transfer} event with `from` set to the zero address.
-     *
-     * Requirements:
-     *
-     * - `account` cannot be the zero address.
+     * Mints new tBTC tokens. Can only be called by the oracle running inside TEE.
+     * @param account The address to mint the tokens to.
+     * @param amount The amount of tokens to mint.
+     * @param txHash The transaction hash of the mint transaction.
      */
     function mint(address account, uint256 amount, bytes32 txHash) public onlyOracle() {
-        require(!submittedTransactions[txHash], "Transaction hash already processed");
-        submittedTransactions[txHash] = true;
+        if (processedMintTransactions[txHash]) revert TransactionAlreadyProcessed();
+        processedMintTransactions[txHash] = true;
         _mint(account, amount);
     }
 
     /**
-     * @dev Destroys `amount` tokens from the caller.
-     *
-     * See {ERC20-_burn}.
+     * Destroys `amount` tokens from the caller and triggers generation of transfer transaction on the bitcoin blockchain via ROFL.
+     * @param amount The amount of tokens to burn.
+     * @param toBitcoinAddress The Bitcoin address to which bitcoins will be unwrapped to on the bitcoin blockchain.
      */
-    function burn(uint256 amount, string memory _bitcoinAddress) public {
-        // require(BitcoinUtils.isValidBitcoinAddress(_bitcoinAddress), "invalid address");
+    function burn(uint256 amount, string memory toBitcoinAddress) public {
+        if (!Bitcoin.isValidBitcoinAddress(toBitcoinAddress)) revert InvalidBitcoinAddress();
         burnCounter++;
         burnData[burnCounter] = BurnTransaction({
             user: _msgSender(),
             amount: amount,
             timestamp: block.timestamp,
             status: 1,
-            bitcoinAddress: _bitcoinAddress,
+            bitcoinAddress: toBitcoinAddress,
             transactionHash: bytes32(0)
         });
 
         _burn(_msgSender(), amount);
-        emit Burn(burnCounter);
         emit BurnGenerateTransaction(burnCounter);
     }
 
     /**
-     * @notice Testing helping function. Remove.
-     * @dev Signs a message
+     * @dev Signs a message. Is called by the oracle running inside TEE to sign transfer of BTC to the bitcoin address.
      * @param msgHash Message hash to sign
      */
-    function sign(bytes32 msgHash, bytes memory token) external onlyOracleSiwe(token) view returns (uint256 nonce, uint256 r, uint256 s, uint8 v) {
+    function sign(bytes32 msgHash, bytes memory token)
+        external onlyOracleSiwe(token)
+        view
+        returns (uint256 nonce, uint256 r, uint256 s, uint8 v)
+    {
         return Bitcoin.sign(privateKey, msgHash);
     }
 
-    function signBurn(uint256 burnId, bytes calldata rawTx, bytes32 transactionHash) external onlyOracle()
+    /**
+     * @notice When transfer transaction has been signed via ROFL it calls this function to store the signed transaction. 
+     * Can only be called by the oracle running inside TEE. The rawTx can be sent to a Bitcoin node to verify the transaction.
+     * @param burnId The ID of the burn transaction.
+     * @param rawTx The raw transaction data.
+     * @param transactionHash The transaction hash of the burn transaction.
+     */
+    function signBurn(uint256 burnId, bytes calldata rawTx, bytes32 transactionHash)
+        external onlyOracle()
     {
-        require(burnData[burnId].status == 1, "Burn transaction not generated");
+        if (burnData[burnId].status != 1) revert BurnTransactionNotGenerated();
         burnData[burnId].status = 2;
         burnData[burnId].transactionHash = transactionHash;
         emit BurnSigned(burnId, rawTx);
     }
 
-    function validateBurn(uint256 burnId) external onlyOracle() {
-        require(burnId == lastVerifiedBurn+1, "Wrong burn ID");
-        require(burnData[burnId].status == 2, "Burn transaction not signed");
+    /**
+     * @notice Is called when ROFL validate that BTC transfer transaction has been completed.
+     * Can only be called by the oracle running inside TEE.
+     * @param burnId The ID of the burn transaction.
+     */
+    function validateBurn(uint256 burnId)
+        external onlyOracle()
+    {
+        if (burnId != lastVerifiedBurn+1) revert WrongBurnId();
+        if (burnData[burnId].status != 2) revert BurnTransactionNotSigned();
         burnData[burnId].status = 3;
         lastVerifiedBurn = burnId;
         emit BurnValidated(burnId);
     }
 
     /**
-     * @dev Can retrigger generation of a burn transaction.
+     * @dev Can retrigger generation of a burn transaction. Normally this is already triggered by the burn function.
+     * Anyone can call this function.
      */
     function requestCreateBurnBitcoinTransaction() external {
         uint256 burnId = lastVerifiedBurn+1;
-        require(burnData[burnId].status == 1, "Burn transaction not generated");
+        if (burnData[burnId].status != 1) revert BurnTransactionNotGenerated();
         emit BurnGenerateTransaction(burnId);
     }
 
+    /**
+     * @dev Triggers ROFL validation of the BTC transfer transaction.
+     * Must be called after transaction has been confirmed with more then 6 confirmations.
+     * Anyone can call this function.
+     */
     function requestValidateBurnBitcoinTransaction() external {
         uint256 burnId = lastVerifiedBurn+1;
-        require(burnData[burnId].status == 2, "Burn transaction not signed");
+        if (burnData[burnId].status != 2) revert BurnTransactionNotSigned();
         emit BurnValidateTransaction(burnId);
     }
 
     /**
-     * @dev Submits a Bitcoin transaction proof
+     * @dev Submits a Bitcoin transaction proof that a BTC transfered happend to the bitcoin address.
      * @param txHash The Bitcoin transaction hash
-     * @param signature The signature of the transaction
-     * @param ethereumAddress The Ethereum address associated with the transaction
+     * @param signature The signature has to be of: txHash + ethereumAddress (both with 0x).
+     * Signature needs to be done by the bitcoin private key that create the transaction.
+     * @param ethereumAddress The Ethereum address to which the tBTC tokens will be minted.
      */
     function submitMintTransactionProof(
         bytes32 txHash,
         string memory signature,
         address ethereumAddress
     ) external  {
-        // Check if the transaction hash has already been submitted
-        require(!submittedTransactions[txHash], "Transaction hash already processed");
-        // Log the transaction proof parameters
+        if (processedMintTransactions[txHash]) revert TransactionAlreadyProcessed();
         emit TransactionProofSubmitted(txHash, signature, ethereumAddress);
     }
 
@@ -190,7 +210,7 @@ contract TrustlessBTC is ERC20, SiweAuth {
         _;
     }
 
-        // Checks whether the transaction or query was signed by the oracle's
+    // Checks whether the transaction or query was signed by the oracle's
     // private key accessible only within TEE.
     modifier onlyOracleSiwe(bytes memory token) {
         if (msg.sender != oracle && authMsgSender(token) != oracle) {

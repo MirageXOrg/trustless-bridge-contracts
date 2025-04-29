@@ -155,4 +155,144 @@ library Bitcoin {
 
         if (r == 0 || s == 0) revert InvalidSignature();
     }
+
+    /**
+     * @dev Validates a Bitcoin address
+     * @param addr The Bitcoin address to validate
+     * @return true if the address is valid, false otherwise
+     */
+    function isValidBitcoinAddress(string memory addr) internal pure returns (bool) {
+        bytes memory addrBytes = bytes(addr);
+        uint256 length = addrBytes.length;
+
+        // Check for minimum and maximum length
+        if (length < 26 || length > 90) {
+            return false;
+        }
+
+        // Check for P2PKH (Base58) addresses
+        // Mainnet: starts with '1'
+        // Testnet: starts with 'm' or 'n'
+        if (addrBytes[0] == '1' || addrBytes[0] == 'm' || addrBytes[0] == 'n') {
+            return validateBase58Address(addrBytes);
+        }
+
+        // Check for Bech32/Bech32m addresses
+        // Mainnet: starts with 'bc1'
+        // Testnet: starts with 'tb1'
+        if ((addrBytes[0] == 'b' && addrBytes[1] == 'c' && addrBytes[2] == '1') ||
+            (addrBytes[0] == 't' && addrBytes[1] == 'b' && addrBytes[2] == '1')) {
+            return validateBech32Address(addrBytes);
+        }
+
+        return false;
+    }
+
+    /**
+     * @dev Validates a Base58 Bitcoin address
+     * @param addr The address bytes
+     * @return true if the address is valid, false otherwise
+     */
+    function validateBase58Address(bytes memory addr) private pure returns (bool) {
+        bytes memory alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+        uint256 num = 0;
+
+        for (uint256 i = 0; i < addr.length; i++) {
+            uint256 index = 58; // invalid
+            for (uint256 j = 0; j < alphabet.length; j++) {
+                if (addr[i] == alphabet[j]) {
+                    index = j;
+                    break;
+                }
+            }
+            if (index == 58) return false; // Invalid base58 character
+            num = num * 58 + index;
+        }
+
+        // Convert num to bytes (big-endian)
+        bytes memory fullBytes = new bytes(25);
+        uint256 temp = num;
+        for (uint256 i = 0; i < 25; i++) {
+            fullBytes[24 - i] = bytes1(uint8(temp & 0xff));
+            temp = temp >> 8;
+        }
+
+        if (temp != 0) {
+            return false; // number too big
+        }
+
+        // Validate checksum
+        bytes memory payload = new bytes(21);
+        for (uint256 i = 0; i < 21; i++) {
+            payload[i] = fullBytes[i];
+        }
+
+        bytes32 hash1 = sha256(payload);
+        bytes32 hash2 = sha256(abi.encodePacked(hash1));
+
+        for (uint256 i = 0; i < 4; i++) {
+            if (fullBytes[21 + i] != hash2[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * @dev Validates a Bech32/Bech32m Bitcoin address
+     * @param addr The address bytes
+     * @return true if the address is valid, false otherwise
+     */
+    function validateBech32Address(bytes memory addr) private pure returns (bool) {
+        // Must be lowercase
+        for (uint256 i = 0; i < addr.length; i++) {
+            if (addr[i] >= 'A' && addr[i] <= 'Z') {
+                return false;
+            }
+        }
+
+        // Find separator '1'
+        int256 separatorIndex = -1;
+        for (uint256 i = 0; i < addr.length; i++) {
+            if (addr[i] == '1') {
+                separatorIndex = int256(i);
+            }
+        }
+        if (separatorIndex == -1 || separatorIndex < 1 || separatorIndex + 7 > int256(addr.length)) {
+            return false; // separator not found or too late
+        }
+
+        // HRP check
+        if (!(addr[0] == 'b' && addr[1] == 'c') && !(addr[0] == 't' && addr[1] == 'b')) {
+            return false;
+        }
+
+        // Check valid Bech32 charset after separator
+        bytes memory charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+        for (uint256 i = uint256(separatorIndex + 1); i < addr.length; i++) {
+            bool found = false;
+            for (uint256 j = 0; j < charset.length; j++) {
+                if (addr[i] == charset[j]) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @dev Checks if a character is valid in Bech32 encoding
+     * @param c The character to check
+     * @return true if the character is valid, false otherwise
+     */
+    function isValidBech32Char(bytes1 c) private pure returns (bool) {
+        return (c >= '0' && c <= '9') || 
+               (c >= 'a' && c <= 'z') || 
+               (c >= 'A' && c <= 'Z');
+    }
 } 

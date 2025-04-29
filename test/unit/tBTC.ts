@@ -105,7 +105,7 @@ describe('TrustlessBTC', () => {
         await expect(
             contract.connect(oracle).mint(bob.address, 1000, txHash)
         )
-        .to.be.revertedWith("Transaction hash already processed");
+        .to.be.revertedWithCustomError(contract, "TransactionAlreadyProcessed");
     });
 
     it('Burns tBTC', async () => {
@@ -121,8 +121,8 @@ describe('TrustlessBTC', () => {
         await expect(
             contract.connect(bob).burn(1000, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa")   
         )
-        .to.emit(contract, "Burn")
-        .withArgs(burnId)
+        .to.emit(contract, "Transfer")
+        .withArgs(bob.address, "0x0000000000000000000000000000000000000000", 1000)
         .to.emit(contract, "BurnGenerateTransaction")
         .withArgs(burnId);
 

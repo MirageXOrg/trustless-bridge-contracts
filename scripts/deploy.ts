@@ -4,21 +4,33 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Deploying contracts with the account:", deployer.address);
 
-  // Deploy SECP256K1 library first
-  console.log("Deploying SECP256K1 library...");
-  const SECP256K1 = await ethers.getContractFactory("SECP256K1");
-  const secp256k1 = await SECP256K1.deploy();
-  await secp256k1.waitForDeployment();
-  const secp256k1Address = await secp256k1.getAddress();
-  console.log("SECP256K1 library deployed to:", secp256k1Address);
+  // Get library addresses from env or deploy new ones
+  let secp256k1Address = process.env.SECP256K1_ADDRESS;
+  let rfc6979Address = process.env.RFC6979_ADDRESS;
 
-  // Deploy RFC6979 library
-  console.log("Deploying RFC6979 library...");
-  const RFC6979 = await ethers.getContractFactory("RFC6979");
-  const rfc6979 = await RFC6979.deploy();
-  await rfc6979.waitForDeployment();
-  const rfc6979Address = await rfc6979.getAddress();
-  console.log("RFC6979 library deployed to:", rfc6979Address);
+  // Deploy SECP256K1 library if not provided
+  if (!secp256k1Address) {
+    console.log("SECP256K1 address not provided in env, deploying new library...");
+    const SECP256K1 = await ethers.getContractFactory("SECP256K1");
+    const secp256k1 = await SECP256K1.deploy();
+    await secp256k1.waitForDeployment();
+    secp256k1Address = await secp256k1.getAddress();
+    console.log("SECP256K1 library deployed to:", secp256k1Address);
+  } else {
+    console.log("Using existing SECP256K1 library at:", secp256k1Address);
+  }
+
+  // Deploy RFC6979 library if not provided
+  if (!rfc6979Address) {
+    console.log("RFC6979 address not provided in env, deploying new library...");
+    const RFC6979 = await ethers.getContractFactory("RFC6979");
+    const rfc6979 = await RFC6979.deploy();
+    await rfc6979.waitForDeployment();
+    rfc6979Address = await rfc6979.getAddress();
+    console.log("RFC6979 library deployed to:", rfc6979Address);
+  } else {
+    console.log("Using existing RFC6979 library at:", rfc6979Address);
+  }
 
   // Create a bytes21 value (21 bytes = 42 hex characters)
   const roflAppID = ethers.zeroPadValue("0x0102030405060708090a0b0c0d0e0f101112131415", 21);
