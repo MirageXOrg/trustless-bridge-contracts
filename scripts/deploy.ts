@@ -1,3 +1,4 @@
+import { bech32 } from "bech32";
 import { ethers } from "hardhat";
 
 async function main() {
@@ -32,8 +33,15 @@ async function main() {
     console.log("Using existing RFC6979 library at:", rfc6979Address);
   }
 
-  // Create a bytes21 value (21 bytes = 42 hex characters)
-  const roflAppID = ethers.zeroPadValue("0x0102030405060708090a0b0c0d0e0f101112131415", 21);
+  // Convert app ID to bytes21
+  const roflAppID = "rofl1qphgw0dxlu9mfte6jtemntn9d9k9zm4jggmp8c0p";
+
+  const {prefix, words} = bech32.decode(roflAppID);
+  if (prefix !== "rofl") {
+    throw new Error(`Malformed ROFL app identifier: ${roflAppID}`);
+  }
+  const rawAppID = new Uint8Array(bech32.fromWords(words));
+
   const oracle = process.env.ORACLE_ADDRESS || "0x704bA7cA2B5e649cd0b77Fd0c2568cdb9C033048";
 
   // Deploy TrustlessBTC with linked libraries
@@ -44,7 +52,7 @@ async function main() {
       RFC6979: rfc6979Address,
     },
   });
-  const tbtc = await TrustlessBTC.deploy(roflAppID, oracle, "trustless.btc");
+  const tbtc = await TrustlessBTC.deploy(rawAppID, oracle, "trustless.btc");
   await tbtc.waitForDeployment();
   const tbtcAddress = await tbtc.getAddress();
 
