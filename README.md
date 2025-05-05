@@ -71,6 +71,17 @@ npx hardhat node
 npx hardhat verify --network sapphireTestnet <contract-address> <constructor-arguments>
 ```
 
+
+## Verify contract
+
+To verify on Sourcify.eth:
+
+- Select: Import from solidity JSON
+- Set compiler the same as hardhat.config
+- choose file: leave blank
+- In drag and drop section you select all JSON files inside artifacts/build-info
+- You wait for it to load then under each contract you set address and chain
+
 ## Network Configuration
 
 The project is configured to work with the following networks:
