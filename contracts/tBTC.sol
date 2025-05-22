@@ -44,6 +44,7 @@ contract TrustlessBTC is ERC20, SiweAuth {
     error BurnTransactionNotGenerated();
     error WrongBurnId();
     error BurnTransactionNotSigned();
+    error ToLowAmount();
 
     event TransactionProofSubmitted(
         bytes32 indexed txHash,
@@ -100,6 +101,7 @@ contract TrustlessBTC is ERC20, SiweAuth {
      */
     function burn(uint256 amount, string memory toBitcoinAddress) public {
         if (!Bitcoin.isValidBitcoinAddress(toBitcoinAddress)) revert InvalidBitcoinAddress();
+        if (amount < 10000) revert ToLowAmount();
         burnCounter++;
         burnData[burnCounter] = BurnTransaction({
             user: _msgSender(),

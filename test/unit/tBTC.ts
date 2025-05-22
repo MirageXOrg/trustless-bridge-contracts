@@ -110,19 +110,17 @@ describe('TrustlessBTC', () => {
 
     it('Burns tBTC', async () => {
         const burnId = 1;
-        const txHash = "0x557dabfd2db86542a027a97779731c024e652b2a8ed5d01432541cb5ca7feba2";
+        const txHash = "0x557dabfd2db86542a027a97779731c024e652b2a8ed5d01432541cb5ca7feba3";
         const rawTxHex = "01000000016dbddb085b1d8af75184f0bc01fad58d1266e9b63c5088155c5e4fc4e558a376000000008b483045022100884d142d86652a3f47ba4746ec719bbfbd040a570b1deccbb6498c75c4ae24cb02204b9f039ff08df09cbe9f6addac960298cad530a863ea8f53982c09db8f6e381301410484ecc0d46f1918b30928fa0e4ed99f16a0fb4fde0735e7ade8416ab9fe423cc5412336376789d172787ec3457eee41c04f4938de5cc17b4a10fa336a8d752adffffffff0240420f00000000001976a91462e907b15cbf27d5425399ebf6f0fb50ebb88f1888ac40420f00000000001976a91462e907b15cbf27d5425399ebf6f0fb50ebb88f1888ac00000000"
         const rawTx = ethers.toUtf8Bytes(rawTxHex);
 
+        await contract.connect(oracle).mint(bob.address, 10000, txHash);
+        
         await expect(
-            contract.connect(oracle).mint(bob.address, 1000, txHash)
-        )
-
-        await expect(
-            contract.connect(bob).burn(1000, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa")   
+            contract.connect(bob).burn(10000, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa")   
         )
         .to.emit(contract, "Transfer")
-        .withArgs(bob.address, "0x0000000000000000000000000000000000000000", 1000)
+        .withArgs(bob.address, "0x0000000000000000000000000000000000000000", 10000)
         .to.emit(contract, "BurnGenerateTransaction")
         .withArgs(burnId);
 
@@ -138,7 +136,21 @@ describe('TrustlessBTC', () => {
         .to.emit(contract, "BurnValidated")
         .withArgs(burnId);
     }); 
-});
+
+    it('Fails to burn with to low amount', async () => {
+        const txHash = "0x557dabfd2db86542a027a97779731c024e652b2a8ed5d01432541cb5ca7feba2";
+        const rawTxHex = "01000000016dbddb085b1d8af75184f0bc01fad58d1266e9b63c5088155c5e4fc4e558a376000000008b483045022100884d142d86652a3f47ba4746ec719bbfbd040a570b1deccbb6498c75c4ae24cb02204b9f039ff08df09cbe9f6addac960298cad530a863ea8f53982c09db8f6e381301410484ecc0d46f1918b30928fa0e4ed99f16a0fb4fde0735e7ade8416ab9fe423cc5412336376789d172787ec3457eee41c04f4938de5cc17b4a10fa336a8d752adffffffff0240420f00000000001976a91462e907b15cbf27d5425399ebf6f0fb50ebb88f1888ac40420f00000000001976a91462e907b15cbf27d5425399ebf6f0fb50ebb88f1888ac00000000"
+        const rawTx = ethers.toUtf8Bytes(rawTxHex);
+
+        await expect(
+            contract.connect(oracle).mint(bob.address, 1000, txHash)
+        )
+
+        await expect(
+            contract.connect(bob).burn(1000, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa")   
+        ).to.be.revertedWithCustomError(contract, "ToLowAmount");
+    });
+}); 
 
 
 
