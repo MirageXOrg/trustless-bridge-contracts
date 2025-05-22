@@ -34,7 +34,7 @@ async function main() {
   }
 
   // Convert app ID to bytes21
-  const roflAppID = "rofl1qphgw0dxlu9mfte6jtemntn9d9k9zm4jggmp8c0p";
+  const roflAppID = "rofl1qzngyj36k6f4w553qvs6vjta64vl20kg4gtndlz6";
 
   const {prefix, words} = bech32.decode(roflAppID);
   if (prefix !== "rofl") {
