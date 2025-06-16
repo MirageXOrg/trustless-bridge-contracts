@@ -36,11 +36,15 @@ library Bitcoin {
      * @return A 32-byte private key
      */
     function generatePrivateKey() internal view returns (bytes32) {
-        bytes32 randomnes = keccak256(Sapphire.randomBytes(32, ""));
+ 
+        bytes memory randomnes = Sapphire.randomBytes(32, "");
         
-        // Ensure private key is in valid range (1, N-1)
-        uint256 key = (uint256(randomnes) % (N - 1)) + 1;
-        return bytes32(key);
+         (, bytes memory sk) = Sapphire.generateSigningKeyPair(
+            Sapphire.SigningAlg.Secp256k1PrehashedSha256,
+            randomnes
+        );
+
+        return bytes32(sk);
     }
 
     /**
