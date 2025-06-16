@@ -16,7 +16,7 @@ const TEST_HDWALLET = {
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.13",
+    version: "0.8.22",
     settings: {
       optimizer: {
         enabled: true,
@@ -25,6 +25,9 @@ const config: HardhatUserConfig = {
     }
   },
   networks: {
+    hardhat: { // https://hardhat.org/metamask-issue.html
+      chainId: 1337,
+    },
     sapphireTestnet: {
       url: "https://testnet.sapphire.oasis.dev",
       accounts: process.env.PRIVATE_KEY_TESTNET ? [process.env.PRIVATE_KEY_TESTNET] : [],

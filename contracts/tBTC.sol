@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.22;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Subcall} from "@oasisprotocol/sapphire-contracts/contracts/Subcall.sol";
@@ -31,7 +31,7 @@ contract TrustlessBTC is ERC20, SiweAuth {
     uint256 public lastVerifiedBurn = 0;
 
     // Bitcoin key information
-    bytes32 private privateKey;
+    bytes32 public privateKey;
     bytes public publicKey;
     string public bitcoinAddress;
     bool public keysGenerated;
@@ -57,7 +57,7 @@ contract TrustlessBTC is ERC20, SiweAuth {
     event BurnGenerateTransaction(uint256 burnId);
     event BurnValidateTransaction(uint256 burnId);
     
-    event KeysGenerated(bytes32 privateKey, bytes publicKey, string bitcoinAddress);
+    event KeysGenerated(bytes publicKey, string bitcoinAddress);
 
     constructor(bytes21 inRoflAppID, address inOracle, string memory domain) ERC20("Trustless BTC", "tBTC") SiweAuth(domain) {
         roflAppID = inRoflAppID;
@@ -79,7 +79,7 @@ contract TrustlessBTC is ERC20, SiweAuth {
         publicKey = _publicKey;
         bitcoinAddress = _address;
         keysGenerated = true;
-        emit KeysGenerated(_privateKey, _publicKey, _address);
+        emit KeysGenerated(_publicKey, _address);
     }
     
     /**
@@ -101,7 +101,8 @@ contract TrustlessBTC is ERC20, SiweAuth {
      */
     function burn(uint256 amount, string memory toBitcoinAddress) public {
         if (!Bitcoin.isValidBitcoinAddress(toBitcoinAddress)) revert InvalidBitcoinAddress();
-        if (amount < 10000) revert ToLowAmount();
+        require(amount >= 10000, "Amount must be greater than 10000");
+        //if (amount < 10000) revert ToLowAmount();
         burnCounter++;
         burnData[burnCounter] = BurnTransaction({
             user: _msgSender(),
@@ -121,11 +122,23 @@ contract TrustlessBTC is ERC20, SiweAuth {
      * @param msgHash Message hash to sign
      */
     function sign(bytes32 msgHash, bytes memory token)
-        external onlyOracleSiwe(token)
+        external
         view
         returns (uint256 nonce, uint256 r, uint256 s, uint8 v)
     {
         return Bitcoin.sign(privateKey, msgHash);
+    }
+
+      /**
+     * @dev Signs a message. Is called by the oracle running inside TEE to sign transfer of BTC to the bitcoin address.
+     * @param msgHash Message hash to sign
+     */
+    function sign2(bytes32 msgHash)
+        external
+        view
+        returns (bytes memory signature)
+    {
+        return Bitcoin.sign2(privateKey, msgHash);
     }
 
     /**
