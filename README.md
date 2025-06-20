@@ -78,6 +78,11 @@ npx hardhat run scripts/deploy.ts --network sapphireMainnet
 npx hardhat run scripts/deploy.ts --network sapphireLocalnet
 ```
 
+Usign docker for the local network:
+```bash
+docker run -it -p8544-8548:8544-8548 --platform linux/x86_64 ghcr.io/oasisprotocol/sapphire-localnet
+```
+
 ### Run Local Network
 ```bash
 npx hardhat node
