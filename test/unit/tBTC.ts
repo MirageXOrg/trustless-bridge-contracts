@@ -21,18 +21,12 @@ describe('TrustlessBTC', () => {
         const secp256k1Address = await secp256k1.getAddress();
       
       
-        // const RFC6979 = await ethers.getContractFactory("RFC6979");
-        // const rfc6979 = await RFC6979.deploy();
-        // await rfc6979.waitForDeployment();
-        // const rfc6979Address = await rfc6979.getAddress();
-      
         // Create a bytes21 value (21 bytes = 42 hex characters)
         roflAppID = ethers.zeroPadValue("0x0102030405060708090a0b0c0d0e0f101112131415", 21);
 
         let tBtc = await ethers.getContractFactory("TrustlessBTC",  {
           libraries: {
             SECP256K1: secp256k1Address,
-            // RFC6979: rfc6979Address,
           },
         });
         contract = await tBtc.deploy(roflAppID, oracle.address, "localhost");
@@ -52,13 +46,13 @@ describe('TrustlessBTC', () => {
         .withArgs(txHash, signature, ethAddress);
     });
 
-    // it('Signs a message via oracle', async () => {
-    //     const messageHash = "0x557dabfd2db86542a027a97779731c024e652b2a8ed5d01432541cb5ca7feba2";
-    //     const [nonce, r, s, v] = await contract.connect(oracle).sign(messageHash, "0x");
-    //     expect(r).to.not.be.undefined;
-    //     expect(s).to.not.be.undefined;
-    //     expect(v).to.not.be.undefined;
-    // });
+    it('Signs a message via oracle', async () => {
+        const messageHash = "0x557dabfd2db86542a027a97779731c024e652b2a8ed5d01432541cb5ca7feba2";
+        const [signature] = await contract.connect(oracle).sign(messageHash);
+        expect(signature).to.not.be.undefined;
+        // expect(s).to.not.be.undefined;
+        // expect(v).to.not.be.undefined;
+    });
 
     it('Signs a message via siwe auth', async () => {
         const messageHash = "0x557dabfd2db86542a027a97779731c024e652b2a8ed5d01432541cb5ca7feba2";
@@ -75,17 +69,12 @@ describe('TrustlessBTC', () => {
         }).toMessage();
         console.log("SIWE Message:", siweMsg);
 
-        const signature = await oracle.signMessage(siweMsg);
-        console.log("signature: ", signature);
-        const sig = ethers.Signature.from(signature);
+        const sig1 = await oracle.signMessage(siweMsg);
+        console.log("signature: ", sig1);
+        const sig = ethers.Signature.from(sig1);
         console.log("sig: ", sig);
-        const token = await contract.login(siweMsg, sig);
-        console.log("token: ", token);
-        const [nonce, r, s, v] = await contract.sign(messageHash, token);
-        // console.log(nonce, r, s, v);
-        // expect(r).to.not.be.undefined;
-        // expect(s).to.not.be.undefined;
-        // expect(v).to.not.be.undefined;
+        const [signature] = await contract.sign(messageHash);
+        expect(signature).to.not.be.undefined;
     });
 
     it('Mints tBTC', async () => {

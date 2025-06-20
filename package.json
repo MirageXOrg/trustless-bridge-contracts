@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "hardhat test",
+    "test-sapphireLocalnet": "hardhat test --network sapphireLocalnet",
     "compile": "hardhat compile",
     "deploy": "hardhat run scripts/deploy.ts --network sapphireTestnet"
   },
