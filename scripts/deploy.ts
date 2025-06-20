@@ -45,11 +45,11 @@ async function main() {
   const oracle = process.env.ORACLE_ADDRESS || "0x704bA7cA2B5e649cd0b77Fd0c2568cdb9C033048";
 
   // Deploy TrustlessBTC with linked libraries
-  console.log("Deploying TrustlessBTC with linked SECP256K1 and RFC6979 libraries...");
+  console.log("Deploying TrustlessBTC with linked SECP256K1  library...");
   const TrustlessBTC = await ethers.getContractFactory("TrustlessBTC", {
     libraries: {
       SECP256K1: secp256k1Address,
-      RFC6979: rfc6979Address,
+      // RFC6979: rfc6979Address,
     },
   });
   const tbtc = await TrustlessBTC.deploy(rawAppID, oracle, "trustless.btc");
@@ -74,13 +74,16 @@ async function main() {
   // Sign a message
   const messageHash = ethers.keccak256(ethers.toUtf8Bytes("Hello, world!"));
   console.log("messageHash: ", messageHash);
-  const signature = await tbtc.sign2(messageHash);
+  const signature = await tbtc.sign(messageHash);
   console.log("signature: ", signature);
-  const {nonce, r, s, v} = await tbtc.sign(messageHash, "0x");
-  console.log("nonce: ", nonce);
-  console.log("r: ", r);
-  console.log("s: ", s);
-  console.log("v: ", v);
+
+  // Verify signature
+  console.log("Verifying signature...");
+
+  // Use the verify method from the TrustlessBTC contract
+  const isValid = await tbtc.verify(messageHash, signature);
+
+  console.log("Signature verification result:", isValid ? "Valid ✓" : "Invalid ✗");
 }
 
 main()

@@ -17,7 +17,7 @@ library Bitcoin {
     uint256 constant N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
     uint256 constant GX = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798;
     uint256 constant GY = 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8;
-    
+
     // Error messages
     error InvalidPrivateKey();
     error InvalidSignatureLength();
@@ -36,9 +36,9 @@ library Bitcoin {
      * @return A 32-byte private key
      */
     function generatePrivateKey() internal view returns (bytes32) {
- 
+
         bytes memory randomnes = Sapphire.randomBytes(32, "");
-        
+
          (, bytes memory sk) = Sapphire.generateSigningKeyPair(
             Sapphire.SigningAlg.Secp256k1PrehashedSha256,
             randomnes
@@ -58,7 +58,7 @@ library Bitcoin {
         if (privKey == 0 || privKey >= N) revert InvalidPrivateKey();
 
         (uint256 qx, uint256 qy) = SECP256K1.derivePubKey(privKey);
-        
+
         return abi.encodePacked(
             bytes1(0x04),
             bytes32(qx),
@@ -74,15 +74,15 @@ library Bitcoin {
      */
     function generateAddress(bytes memory pubKey, bool isTestnet) internal pure returns (bytes memory) {
         bytes20 pubKeyHash = ripemd160(abi.encodePacked(sha256(pubKey)));
-        
+
         bytes1 version = isTestnet ? TESTNET_VERSION : MAINNET_VERSION;
         bytes memory preAddress = abi.encodePacked(version, pubKeyHash);
-        
+
         // Add checksum (first 4 bytes of double SHA256)
         bytes32 hash1 = sha256(preAddress);
         bytes32 hash2 = sha256(abi.encodePacked(hash1));
         bytes4 checksum = bytes4(hash2);
-        
+
         return abi.encodePacked(preAddress, checksum);
     }
 
@@ -124,43 +124,11 @@ library Bitcoin {
     }
 
     /**
-     * @dev Signs a Bitcoin transaction hash using RFC6979 deterministic k
+     * @dev Signs a message using Sapphire
      * @param privateKey The private key
      * @param msgHash The message hash to sign
      */
-    function sign(
-        bytes32 privateKey,
-        bytes32 msgHash
-    ) internal pure returns (uint256 nonce, uint256 r, uint256 s, uint8 v) {
-        uint256 privKey = uint256(privateKey);
-        if (privKey == 0 || privKey >= N) revert InvalidPrivateKey();
-
-        nonce = RFC6979.generateK(privateKey, msgHash);
-        nonce = (nonce % (N - 1)) + 1; // Ensure 1 <= k < N   
-
-        (uint256 Rx, ) = SECP256K1.multiplyG(nonce);
-        r = Rx % N;
-
-        // s = k^-1 * (z + r*d) mod N
-        uint256 kinv = SECP256K1.inverseMod(nonce, N);
-        s = mulmod(
-            kinv,
-            addmod(uint256(msgHash), mulmod(r, privKey, N), N),
-            N
-        );
-
-        // Enforce low s
-        if (s > N / 2) {
-            s = N - s;
-            v = 1;
-        } else {
-            v = 0;
-        }
-
-        if (r == 0 || s == 0) revert InvalidSignature();
-    }
-
-     function sign2(
+     function sign(
         bytes32 privateKey,
         bytes32 msgHash
     ) internal view returns (bytes memory signature) {
@@ -170,6 +138,27 @@ library Bitcoin {
             bytes.concat(privateKey),
             bytes.concat(msgHash),
             ""
+        );
+    }
+
+    /**
+     * @dev Verifies a signature
+     * @param publicKey The public key to verify against
+     * @param msgHash The message hash that was signed
+     * @param signature The signature to verify
+     * @return True if the signature is valid, false otherwise
+     */
+    function verify(
+        bytes memory publicKey,
+        bytes32 msgHash,
+        bytes memory signature
+    ) internal view returns (bool) {
+        return Sapphire.verify(
+            Sapphire.SigningAlg.Secp256k1PrehashedSha256,
+            publicKey,
+            bytes.concat(msgHash),
+            "",
+            signature
         );
     }
 

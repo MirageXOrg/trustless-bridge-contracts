@@ -116,26 +116,27 @@ async function sendCustomSignedTransaction(
 
         // Call TrustlessBTC contract to sign the sighash
         const sighashHex = '0x' + sighash.toString('hex');
-        const { nonce, r, s, v } = await trustlessBtc.sign.staticCall(sighashHex);
+        const { signature } = await trustlessBtc.sign.staticCall(sighashHex);
+        // const { nonce, r, s, v } = await trustlessBtc.sign.staticCall(sighashHex);
 
-        console.log("nonce", nonce);
-        console.log("r", r);
-        console.log("s", s);
-        console.log("v", v);
+        console.log("signature", signature);
+        // console.log("r", r);
+        // console.log("s", s);
+        // console.log("v", v);
 
         // Convert r, s to Buffer
-        let rBuf = Buffer.from(r.toString(16).padStart(64, '0'), 'hex');
-        let sBuf = Buffer.from(s.toString(16).padStart(64, '0'), 'hex');
-        rBuf = toPositiveBuffer(rBuf);
-        sBuf = toPositiveBuffer(sBuf);
-        let derSig = Buffer.concat([
-            encodeDerSignature(new BN(rBuf), new BN(sBuf)),
-            Buffer.from([sighashType])
-        ]);
+        // let rBuf = Buffer.from(r.toString(16).padStart(64, '0'), 'hex');
+        // let sBuf = Buffer.from(s.toString(16).padStart(64, '0'), 'hex');
+        // rBuf = toPositiveBuffer(rBuf);
+        // sBuf = toPositiveBuffer(sBuf);
+        // let derSig = Buffer.concat([
+        //     encodeDerSignature(new BN(rBuf), new BN(sBuf)),
+        //     Buffer.from([sighashType])
+        // ]);
         psbt.updateInput(i, {
             partialSig: [{
                 pubkey: pubKeyBuffer,
-                signature: derSig
+                signature
             }]
         });
         psbt.finalizeInput(i);

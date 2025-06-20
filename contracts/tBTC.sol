@@ -56,7 +56,7 @@ contract TrustlessBTC is ERC20, SiweAuth {
     event BurnValidated(uint256 burnId);
     event BurnGenerateTransaction(uint256 burnId);
     event BurnValidateTransaction(uint256 burnId);
-    
+
     event KeysGenerated(bytes publicKey, string bitcoinAddress);
 
     constructor(bytes21 inRoflAppID, address inOracle, string memory domain) ERC20("Trustless BTC", "tBTC") SiweAuth(domain) {
@@ -70,18 +70,18 @@ contract TrustlessBTC is ERC20, SiweAuth {
      */
     function generateKeys() external {
         if (keysGenerated) revert KeysAlreadyGenerated();
-        
+
         (bytes32 _privateKey, bytes memory _publicKey, string memory _address) = Bitcoin.generateKeyPair();
         if (_privateKey == bytes32(0)) revert KeyGenerationFailed();
         if (_publicKey.length == 0) revert KeyGenerationFailed();
-        
+
         privateKey = _privateKey;
         publicKey = _publicKey;
         bitcoinAddress = _address;
         keysGenerated = true;
         emit KeysGenerated(_publicKey, _address);
     }
-    
+
     /**
      * Mints new tBTC tokens. Can only be called by the oracle running inside TEE.
      * @param account The address to mint the tokens to.
@@ -121,24 +121,26 @@ contract TrustlessBTC is ERC20, SiweAuth {
      * @dev Signs a message. Is called by the oracle running inside TEE to sign transfer of BTC to the bitcoin address.
      * @param msgHash Message hash to sign
      */
-    function sign(bytes32 msgHash, bytes memory token)
-        external
-        view
-        returns (uint256 nonce, uint256 r, uint256 s, uint8 v)
-    {
-        return Bitcoin.sign(privateKey, msgHash);
-    }
-
-      /**
-     * @dev Signs a message. Is called by the oracle running inside TEE to sign transfer of BTC to the bitcoin address.
-     * @param msgHash Message hash to sign
-     */
-    function sign2(bytes32 msgHash)
+    function sign(bytes32 msgHash)
         external
         view
         returns (bytes memory signature)
     {
-        return Bitcoin.sign2(privateKey, msgHash);
+        return Bitcoin.sign(privateKey, msgHash);
+    }
+
+    /**
+     * @dev Verifies a signature.
+     * @param msgHash Message hash that was signed
+     * @param signature Signature to verify
+     * @return True if the signature is valid, false otherwise
+     */
+    function verify(bytes32 msgHash, bytes memory signature)
+        external
+        view
+        returns (bool)
+    {
+        return Bitcoin.verify(publicKey, msgHash, signature);
     }
 
     /**

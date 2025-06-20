@@ -68,19 +68,15 @@ async function main() {
     }).toMessage();
     console.log("SIWE Message:", siweMsg);
 
-    const signature = await signer.signMessage(siweMsg);
-    console.log("signature: ", signature);
-    const sig = ethers.Signature.from(signature);
+    const sig1 = await signer.signMessage(siweMsg);
+    console.log("signature: ", sig1);
+    const sig = ethers.Signature.from(sig1);
     console.log("sig: ", sig);
     const token = await trustlessBtc.login(siweMsg, sig);
     console.log("token: ", token);
 
-    const [nonce, r, s, v] = await trustlessBtc.sign(messageHash, token);
-    console.log("\nSignature:");
-    console.log("nonce:", "0x" + nonce.toString(16));
-    console.log("r:", "0x" + r.toString(16));
-    console.log("s:", "0x" + s.toString(16));
-    console.log("v:", "0x" + v.toString(16));
+    const [signature] = await trustlessBtc.sign(messageHash, token);
+    console.log("\nSignature:" + signature);
   } catch (error) {
     console.error("Failed to sign message:", error);
   }
