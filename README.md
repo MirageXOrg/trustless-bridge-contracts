@@ -57,8 +57,15 @@ npx hardhat compile
 ```
 
 ### Run Tests
+Tests need to be run on sapphireLocalnet. To start, first run:
 ```bash
-npx hardhat test
+docker run -it -p8544-8548:8544-8548 --platform linux/x86_64 ghcr.io/oasisprotocol/sapphire-localnet
+```
+
+then: 
+
+```bash
+npx hardhat test --network sapphireLocalnet
 ```
 
 ### Deploy Contracts
