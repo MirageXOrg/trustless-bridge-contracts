@@ -160,6 +160,19 @@ library Bitcoin {
         if (r == 0 || s == 0) revert InvalidSignature();
     }
 
+     function sign2(
+        bytes32 privateKey,
+        bytes32 msgHash
+    ) internal view returns (bytes memory signature) {
+
+        signature = Sapphire.sign(
+            Sapphire.SigningAlg.Secp256k1PrehashedSha256,
+            bytes.concat(privateKey),
+            bytes.concat(msgHash),
+            ""
+        );
+    }
+
     /**
      * @dev Validates a Bitcoin address
      * @param addr The Bitcoin address to validate

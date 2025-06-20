@@ -66,10 +66,21 @@ async function main() {
     console.log("Keys generated successfully");
     console.log("Bitcoin address:", await tbtc.bitcoinAddress());
     console.log("Public key:", await tbtc.publicKey());
-    // console.log("Private key:", await tbtc.privateKey());
+    console.log("Private key:", await tbtc.privateKey());
   } catch (error) {
     console.error("Failed to generate keys:", error);
   }
+
+  // Sign a message
+  const messageHash = ethers.keccak256(ethers.toUtf8Bytes("Hello, world!"));
+  console.log("messageHash: ", messageHash);
+  const signature = await tbtc.sign2(messageHash);
+  console.log("signature: ", signature);
+  const {nonce, r, s, v} = await tbtc.sign(messageHash, "0x");
+  console.log("nonce: ", nonce);
+  console.log("r: ", r);
+  console.log("s: ", s);
+  console.log("v: ", v);
 }
 
 main()
