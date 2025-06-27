@@ -262,6 +262,7 @@ library Bitcoin {
         for (uint256 i = 0; i < addr.length; i++) {
             if (addr[i] == '1') {
                 separatorIndex = int256(i);
+                break; // Use the first '1' as separator
             }
         }
         if (separatorIndex == -1 || separatorIndex < 1 || separatorIndex + 7 > int256(addr.length)) {
@@ -273,12 +274,20 @@ library Bitcoin {
             return false;
         }
 
-        // Check valid Bech32 charset after separator
+        // Extract HRP (human-readable part)
+        bytes memory hrp = new bytes(uint256(separatorIndex));
+        for (uint256 i = 0; i < uint256(separatorIndex); i++) {
+            hrp[i] = addr[i];
+        }
+
+        // Check valid Bech32 charset after separator and convert to 5-bit values
         bytes memory charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+        uint8[] memory data = new uint8[](addr.length - uint256(separatorIndex) - 1);
         for (uint256 i = uint256(separatorIndex + 1); i < addr.length; i++) {
             bool found = false;
             for (uint256 j = 0; j < charset.length; j++) {
                 if (addr[i] == charset[j]) {
+                    data[i - uint256(separatorIndex) - 1] = uint8(j);
                     found = true;
                     break;
                 }
@@ -288,7 +297,85 @@ library Bitcoin {
             }
         }
 
+        // Verify checksum
+        return verifyBech32Checksum(hrp, data);
+    }
+
+    /**
+     * @dev Verifies the checksum of a Bech32 address
+     * @param hrp The human-readable part
+     * @param data The data part (5-bit values)
+     * @return true if the checksum is valid, false otherwise
+     */
+    function verifyBech32Checksum(bytes memory hrp, uint8[] memory data) private pure returns (bool) {
+        // Try both Bech32 and Bech32m formats
+        return verifyChecksum(hrp, data, 1) || verifyChecksum(hrp, data, 0x2bc830a3);
+    }
+
+    /**
+     * @dev Verifies the checksum with a specific constant
+     * @param hrp The human-readable part
+     * @param data The data part (5-bit values)
+     * @param constnt The checksum constant (1 for Bech32, 0x2bc830a3 for Bech32m)
+     * @return true if the checksum is valid, false otherwise
+     */
+    function verifyChecksum(bytes memory hrp, uint8[] memory data, uint32 checksumConstant) private pure returns (bool) {
+        uint32 chk = 1;
+        uint32 value;
+
+        // Process HRP characters
+        for (uint256 i = 0; i < hrp.length; i++) {
+            value = uint32(uint8(hrp[i]) >> 5);
+            chk = bech32Polymod(chk) ^ value;
+        }
+
+        chk = bech32Polymod(chk);
+
+        for (uint256 i = 0; i < hrp.length; i++) {
+            value = uint32(uint8(hrp[i]) & 0x1f);
+            chk = bech32Polymod(chk) ^ value;
+        }
+
+        // Process data characters
+        for (uint256 i = 0; i < data.length - 6; i++) {
+            chk = bech32Polymod(chk) ^ uint32(data[i]);
+        }
+
+        // Process checksum characters
+        for (uint256 i = 0; i < 6; i++) {
+            chk = bech32Polymod(chk);
+        }
+
+        // Final checksum
+        chk ^= checksumConstant;
+
+        // Verify checksum
+        for (uint256 i = 0; i < 6; i++) {
+            if (uint32(data[data.length - 6 + i]) != ((chk >> (5 * (5 - i))) & 0x1f)) {
+                return false;
+            }
+        }
+
         return true;
+    }
+
+    /**
+     * @dev Bech32 polymod function for checksum calculation
+     * @param pre The previous value
+     * @return The next value
+     */
+    function bech32Polymod(uint32 pre) private pure returns (uint32) {
+        uint8[5] memory generator = [0x3b, 0x1e, 0x03, 0x2a, 0x22]; // Generator coefficients
+        uint32 b = pre >> 25;
+        uint32 ret = ((pre & 0x1ffffff) << 5);
+
+        for (uint256 i = 0; i < 5; i++) {
+            if (((b >> i) & 1) == 1) {
+                ret ^= uint32(generator[i]) << 25;
+            }
+        }
+
+        return ret;
     }
 
     /**

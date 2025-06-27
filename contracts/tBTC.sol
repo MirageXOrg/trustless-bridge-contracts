@@ -31,7 +31,7 @@ contract TrustlessBTC is ERC20, SiweAuth {
     uint256 public lastVerifiedBurn = 0;
 
     // Bitcoin key information
-    bytes32 public privateKey;
+    bytes32 private privateKey;
     bytes public publicKey;
     string public bitcoinAddress;
     bool public keysGenerated;
